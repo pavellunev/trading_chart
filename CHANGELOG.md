@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-07
+
+### Added
+
+- Built-in persistence of the chart's settings. Set `TradingChartConfiguration.persistence` to a `ChartPersistence` and the
+  model restores the style, the indicators and (with a `drawingsKey`) the drawings the user left, and saves them again when
+  they change: no code on the host's side besides that one setting. The indicators come back from the catalog of the
+  `IndicatorBar` by `id`, in the order of the catalog. The drawings are saved when one is added, changed (at the end of a drag)
+  or removed, and follow `drawingsKey`, so a chart that changes its symbol keeps the drawings of each. The records are small
+  versioned JSON values in a `ChartPreferencesStore` (`UserDefaultsChartPreferencesStore` by default; implement the protocol to
+  keep them elsewhere); damaged or foreign data is ignored.
+
 ## [0.1.2] - 2026-10-07
 
 ### Fixed
@@ -91,7 +103,8 @@ The first version.
 - Monthly bars are not supported: a month is not a fixed number of seconds, and a `ChartInterval` is.
 - `onEvent` holds one handler; the model does not have several subscribers.
 
-[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.2...HEAD
+[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.3...HEAD
+[0.1.3]: https://github.com/pavellunev/trading_chart/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/pavellunev/trading_chart/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/pavellunev/trading_chart/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/pavellunev/trading_chart/releases/tag/0.1.0

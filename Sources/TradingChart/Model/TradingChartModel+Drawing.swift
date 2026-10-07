@@ -16,6 +16,9 @@ extension TradingChartModel {
     /// No ``DrawingEvent`` is sent for an assignment, except ``DrawingEvent/selectionChanged(_:)`` with `nil` when the
     /// selected drawing is no longer among the new ones.
     ///
+    /// With a ``ChartPersistence/drawingsKey`` an assignment is saved under that key, replacing what was saved there: to show
+    /// the drawings of another symbol, change the key instead of assigning them.
+    ///
     /// Drawings show whether or not ``TradingChartConfiguration/isDrawingEnabled`` is on; that setting only turns off
     /// creating and editing them by touch.
     public var drawings: [ChartDrawing] {
@@ -24,6 +27,7 @@ extension TradingChartModel {
             guard newValue != drawingEditor.drawings else { return }
             let hadSelection = drawingEditor.selectedID != nil
             drawingEditor.setDrawings(newValue)
+            persistDrawings()
             if hadSelection, drawingEditor.selectedID == nil { emit(.selectionChanged(nil)) }
         }
     }
@@ -80,7 +84,8 @@ extension TradingChartModel {
         guard !ids.isEmpty else { return }
         let hadSelection = drawingEditor.selectedID != nil
         drawingEditor.removeAll()
-        for id in ids { emit(.removed(id)) }
+        persistDrawings()
+        for id in ids { emit(.removed(id), persists: false) }
         if hadSelection { emit(.selectionChanged(nil)) }
     }
 
@@ -173,8 +178,16 @@ extension TradingChartModel {
         emit(drawingEditor.select(nil))
     }
 
-    private func emit(_ event: DrawingEvent?) {
+    /// Passes an event to the host. A drawing that was added, changed or removed is saved first (see
+    /// ``TradingChartConfiguration/persistence``); a selection is not.
+    private func emit(_ event: DrawingEvent?, persists: Bool = true) {
         guard let event else { return }
+        if persists {
+            switch event {
+            case .added, .changed, .removed: persistDrawings()
+            case .selectionChanged: break
+            }
+        }
         onEvent?(.drawing(event))
     }
 }

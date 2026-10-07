@@ -50,7 +50,7 @@ Set ``TradingChartConfiguration/isDrawingEnabled`` to `false` to turn creating a
 
 ## Saving drawings
 
-``ChartDrawing`` is `Codable` and anchored to absolute times and prices, so drawings survive scrolling, zooming and changes of the interval and the style.
+To have the chart save and restore the drawings for you, set a ``ChartPersistence/drawingsKey`` in the persistence (see <doc:Persistence>), and to show another symbol's drawings change the key instead of assigning ``TradingChartModel/drawings``. Do not combine that with the recipe below: with a ``ChartPersistence/drawingsKey``, every assignment of ``TradingChartModel/drawings`` is saved under the current key and replaces what was saved there. To keep the drawings yourself (no ``ChartPersistence/drawingsKey``): ``ChartDrawing`` is `Codable` and anchored to absolute times and prices, so drawings survive scrolling, zooming and changes of the interval and the style.
 
 ```swift
 import Foundation

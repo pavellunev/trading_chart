@@ -84,9 +84,6 @@ final class DemoViewModel {
 
     private(set) var isLoading = false
 
-    /// Bumped when a drawing was added, changed or removed (not on every step of a drag): `ContentView` saves the drawings then.
-    private(set) var drawingsRevision = 0
-
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var historyTask: Task<Void, Never>?
     @ObservationIgnored private var tickTask: Task<Void, Never>?
@@ -122,6 +119,16 @@ final class DemoViewModel {
             self?.handle(event)
         }
         model.indicators = [Indicator.sma20, .volume].map(\.chartIndicator)
+        // What the user chose (the style, the indicators, the drawings) survives a restart. Set after the defaults above, which
+        // stay on the first launch; a saved choice replaces them. `-no-restore` starts clean and saves nothing (scripted
+        // screenshots and measurements).
+        if !arguments.contains("-no-restore") {
+            model.configuration.persistence = ChartPersistence(
+                key: "demo.chart",
+                indicatorCatalog: Self.catalog,
+                drawingsKey: "demo"
+            )
+        }
     }
 
     /// Starts the live feed (one tick per second) and then whatever the launch arguments ask for:
@@ -435,8 +442,6 @@ final class DemoViewModel {
         switch event {
         case .approachedHistoryStart:
             loadHistory()
-        case .drawing(.added), .drawing(.changed), .drawing(.removed):
-            drawingsRevision += 1
         default:
             break
         }

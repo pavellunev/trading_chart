@@ -51,6 +51,12 @@ public struct TradingChartConfiguration: Sendable {
     /// The style picker on the chart: a small icon in the legend row of the main pane that opens a menu of styles
     /// (``SeriesStylePicker``). `nil`, the default, shows none.
     public var stylePicker: StylePickerOptions?
+    /// What the chart remembers between launches: the style, the indicators and, with a key, the drawings (see
+    /// ``ChartPersistence``). `nil`, the default, saves and restores nothing.
+    ///
+    /// A model created with it restores before its first frame. Set later, it restores what is saved and keeps the rest as
+    /// it is: to start with defaults of your own on the first launch, set them first and set this afterwards.
+    public var persistence: ChartPersistence?
     /// Height of every indicator pane below the main chart.
     public var paneHeight: CGFloat
     /// Preferred number of labels on the price axis.
@@ -91,7 +97,8 @@ public struct TradingChartConfiguration: Sendable {
         historyPrefetchThreshold: HistoryPrefetchThreshold = .visibleWindows(1),
         renderBufferWindows: Double = 1,
         historyReserveBars: Int = 1_000,
-        stylePicker: StylePickerOptions? = nil
+        stylePicker: StylePickerOptions? = nil,
+        persistence: ChartPersistence? = nil
     ) {
         self.viewport = viewport
         self.maxLiveBarCount = maxLiveBarCount
@@ -109,5 +116,6 @@ public struct TradingChartConfiguration: Sendable {
         self.renderBufferWindows = renderBufferWindows
         self.historyReserveBars = historyReserveBars
         self.stylePicker = stylePicker
+        self.persistence = persistence
     }
 }

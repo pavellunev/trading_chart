@@ -104,6 +104,7 @@ let model = TradingChartModel(style: .candles, configuration: configuration)
 | ``TradingChartConfiguration/historyPrefetchThreshold``, ``TradingChartConfiguration/historyReserveBars`` | paging of history, see <doc:LiveData> |
 | ``TradingChartConfiguration/maxLiveBarCount`` | how many bars a growing live series keeps |
 | ``TradingChartConfiguration/renderBufferWindows`` | how far outside the window the marks are built, a trade of memory and rebuilds for scroll smoothness |
+| ``TradingChartConfiguration/persistence`` | what the chart remembers between launches: the style, the indicators and the drawings, see <doc:Persistence> |
 
 ## Style picker
 

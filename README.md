@@ -40,6 +40,7 @@ A native SwiftUI trading chart for iOS: candlesticks, lines and areas with techn
 - **History paging**: the chart tells you when the user nears the oldest bar, you prepend an older page, and nothing jumps.
 - **Crosshair**: long-press and drag to read a bar; a tooltip with open, high, low, close, change, range and volume; legends with the values of every indicator.
 - **Drawing tools**: horizontal line, trend line and ray, created with taps, selected and dragged by anchor or body. Drawings are `Codable`; add your own tools with the `DrawingTool` protocol.
+- **Remembers the user's settings**: the style, the indicators and the drawings survive a restart with one line of setup (`ChartPersistence`), and the drawings follow the symbol.
 - **Details that traders expect**: the highest and the lowest price of the window labelled, buy and sell markers, a loading indicator while history loads, light and dark appearance, VoiceOver scrolling.
 - **Themeable**: colours, fonts, strokes, price and time formatting are injected through the SwiftUI environment.
 - **14 languages** (Arabic included, without mirroring the chart): VoiceOver texts, the tooltip and the style picker are translated and follow the language of your app.
@@ -87,7 +88,7 @@ Choose **File > Add Package Dependencies...**, enter the URL of this repository,
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.2")),
+    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.3")),
 ],
 targets: [
     .target(
@@ -289,9 +290,34 @@ func makeModel() -> TradingChartModel {
 }
 ```
 
-Other switches: `showsCurrentPriceLine`, `showsPriceBadge`, `showsLegend`, `isCrosshairEnabled`, `isZoomEnabled`, `isHapticsEnabled`. `ViewportConfiguration` sets the default, minimum and maximum number of bars across the window and the gap at the live edge.
+`persistence` makes the chart remember the style, the indicators and the drawings (see [Persistence](#persistence)). Other switches: `showsCurrentPriceLine`, `showsPriceBadge`, `showsLegend`, `isCrosshairEnabled`, `isZoomEnabled`, `isHapticsEnabled`. `ViewportConfiguration` sets the default, minimum and maximum number of bars across the window and the gap at the live edge.
 
 `SeriesStylePicker` is the same control as a public view, if you want it in a toolbar.
+
+## Persistence
+
+The chart can remember what the user chose: the style, the indicators and the drawings. Set `persistence` in the configuration and nothing else is needed: the model restores them when it is created, before the first frame, and saves them again whenever they change.
+
+```swift
+import TradingChart
+
+@MainActor
+func makeModel(symbol: String, catalog: [any ChartIndicator]) -> TradingChartModel {
+    var configuration = TradingChartConfiguration()
+    configuration.stylePicker = StylePickerOptions()
+    configuration.persistence = ChartPersistence(
+        key: "chart",                                   // the namespace of everything saved
+        indicatorCatalog: catalog,                      // the catalog of the IndicatorBar
+        drawingsKey: symbol                             // nil: the drawings are not saved
+    )
+    return TradingChartModel(style: .candles, configuration: configuration)   // .candles is the default of a first launch
+}
+```
+
+- **Style and indicators** are saved under `key`. Indicators are code, so what is saved is their `id`s, and they are restored from `indicatorCatalog` (the same catalog that is given to `IndicatorBar`), in the order of the catalog; an id that the catalog does not know is ignored. A saved style that the style picker does not offer (`StylePickerOptions.availableStyles`) is not restored. `persistsStyle` and `persistsIndicators` switch either off.
+- **Drawings** are saved under `drawingsKey`, which can be the symbol on the chart. They are written when one is added, changed (at the end of a drag, not on every step) or removed, or when `model.drawings` is assigned. When the chart shows another symbol, change the key (`model.configuration.persistence?.drawingsKey = "ETHUSDT"`): the drawings on the chart are saved under the old key and the ones saved under the new key are shown. When nothing is saved under the new key the chart is emptied, except that drawings that belong to no key (the chart had none before) are adopted by the first key, and a drawing that is half placed is dropped. Do not assign `model.drawings` (clearing it included) before that: any assignment is saved under the old key and replaces the saved drawings of the old symbol. With no `drawingsKey` the drawings are neither saved nor restored.
+- **Defaults of your own** for the first launch: set them (`model.indicators = [...]`) before setting `persistence`. Setting it later restores what is saved and leaves the rest as it is, so the defaults stay until the user changes them.
+- **The store** is `UserDefaults.standard` unless you pass another `ChartPreferencesStore` (a `UserDefaultsChartPreferencesStore` on an app group suite, your own file or database). The chart writes a few small JSON records with a `version`, only when something changes (creating the model and restoring write nothing; switching the key, the flags or the catalog first saves the drawings under the old key), and ignores anything it cannot read, so damaged data or a record of a newer version never breaks the chart.
 
 ## Localization
 
@@ -519,7 +545,7 @@ Once a tool is active, each tap on the chart places an anchor; the last one adds
 
 ### Saving drawings
 
-`ChartDrawing` is `Codable` and anchored to absolute times and prices, so drawings survive scrolling, zooming and a change of interval.
+To have the chart save and restore them for you, set a `drawingsKey` in the [persistence](#persistence), and to show another symbol's drawings change the key instead of assigning `model.drawings`. Do not combine that with the recipe below: with a `drawingsKey`, every assignment of `model.drawings` is saved under the current key and replaces what was saved there. To keep the drawings yourself (no `drawingsKey`): `ChartDrawing` is `Codable` and anchored to absolute times and prices, so drawings survive scrolling, zooming and a change of interval.
 
 ```swift
 import Foundation

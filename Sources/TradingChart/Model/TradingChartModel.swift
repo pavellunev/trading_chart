@@ -53,6 +53,11 @@ import TradingChartCore
 /// - ``isLoadingHistory``
 /// - ``hasMoreHistory``
 ///
+/// ### Persistence
+///
+/// - ``TradingChartConfiguration/persistence``
+/// - ``ChartPersistence``
+///
 /// ### Drawings
 ///
 /// - ``drawings``
@@ -87,6 +92,7 @@ public final class TradingChartModel {
             viewportInputsDidChange()
             if !configuration.isCrosshairEnabled, crosshairTime != nil { crosshairTime = nil }
             if oldValue.isDrawingEnabled, !configuration.isDrawingEnabled { cancelDrawingInteraction() }
+            persistenceDidChange(from: oldValue.persistence)
         }
     }
 
@@ -98,6 +104,7 @@ public final class TradingChartModel {
         didSet {
             guard style != oldValue else { return }
             styleDidChange()
+            persistStyle()
         }
     }
 
@@ -117,7 +124,7 @@ public final class TradingChartModel {
 
     /// Indicators calculated from the series. Entries with a duplicate ``ChartIndicator/id`` are dropped.
     public var indicators: [any ChartIndicator] {
-        didSet { indicatorsDidChange() }
+        didSet { indicatorsDidChange(from: oldValue) }
     }
 
     /// The left edge of the visible window. ``TradingChartView`` moves it when the user scrolls (a drag, and a fling after it)
@@ -179,6 +186,15 @@ public final class TradingChartModel {
 
     /// Where the finger was relative to the anchor it grabbed, so that the anchor does not jump under the finger.
     @ObservationIgnored var drawingGrabOffset = CGSize.zero
+
+    /// Set while what was saved is put back (``TradingChartConfiguration/persistence``): the values that come out of the store
+    /// are not written back to it.
+    @ObservationIgnored var isRestoringPersistence = false
+
+    /// The place (``ChartPersistence/drawingsStoreKey``) whose drawings are on the chart. It stays when the key is taken away
+    /// (a `nil` ``ChartPersistence/drawingsKey``, no persistence at all): the drawings on the chart still are the ones of
+    /// that key, and no other key may adopt them. `nil` only while the drawings belong to no key.
+    @ObservationIgnored var shownDrawingsKey: String?
 
     /// Receives chart notifications.
     ///
@@ -291,11 +307,16 @@ public final class TradingChartModel {
     @ObservationIgnored private var lastReportedCrosshairTime: Date?
 
     /// Creates a model.
+    ///
+    /// With ``TradingChartConfiguration/persistence`` set, the style, the indicators and the drawings that were saved are
+    /// restored before the first frame: a saved style replaces `style`, which is then only the default for a first launch.
     public init(
         series: ChartSeries = .empty(interval: .minutes(1)),
         style: SeriesStyle = .candles,
         configuration: TradingChartConfiguration = TradingChartConfiguration()
     ) {
+        let persistence = configuration.persistence
+        let style = persistence?.restoredStyle(offeredBy: configuration.stylePicker) ?? style
         let bars = configuration.viewport.defaultVisibleBars(for: style)
         let effective = ViewportMath.effectiveConfiguration(
             configuration.viewport,
@@ -307,7 +328,7 @@ public final class TradingChartModel {
         self.series = series
         self.style = style
         self.markers = []
-        self.indicators = []
+        self.indicators = persistence?.restoredIndicators() ?? []
         self.visibleBars = bars
         self.chartVisibleDuration = bars * series.interval.seconds
         self.viewport = effective
@@ -321,6 +342,12 @@ public final class TradingChartModel {
             )
         } else {
             self.scrollPosition = Date()
+        }
+        if let drawings = persistence?.restoredDrawings() { drawingEditor.setDrawings(drawings) }
+        shownDrawingsKey = persistence?.drawingsStoreKey
+        if !indicators.isEmpty {
+            recomputeIndicators()
+            renderData = RenderData(series: series, outputs: indicatorOutputs, paletteBases: paletteBases)
         }
         refreshChartDomain()
         refreshRenderState(.structural, dataChanged: true)
@@ -722,14 +749,21 @@ public final class TradingChartModel {
     private static let metricsHysteresis: CGFloat = 1
     static let scrollNudgeBars: Double = 0.001
 
-    private func indicatorsDidChange() {
+    private func indicatorsDidChange(from old: [any ChartIndicator]) {
         var seen = Set<String>()
         let unique = indicators.filter { seen.insert($0.id).inserted }
         if unique.count != indicators.count {
+            // Assigning the list without the duplicates comes back here with the list that has them as `old`, which would write
+            // the same ids again: the write is made here, against the list that was there before.
+            let wasRestoring = isRestoringPersistence
+            isRestoringPersistence = true
             indicators = unique
+            isRestoringPersistence = wasRestoring
+            if old.map(\.id) != unique.map(\.id) { persistIndicators() }
             return
         }
         batch { recomputeIndicators() }
+        if old.map(\.id) != indicators.map(\.id) { persistIndicators() }
     }
 
     private func recomputeIndicators() {

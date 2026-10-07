@@ -2,7 +2,7 @@ import Foundation
 import TradingChart
 
 /// Drawings in the demo: the script actions that put drawings on the chart without touches (for screenshots and the
-/// performance runs), and saving the drawings as JSON, which shows that `ChartDrawing` is `Codable`.
+/// performance runs).
 extension DemoViewModel {
 
     /// The drawing kind for a launch-script name.
@@ -100,18 +100,5 @@ extension DemoViewModel {
         guard let close = model.series.lastValue else { return nil }
         let offset = text.dropFirst()
         return offset.isEmpty ? close : Double(offset).map { close + $0 }
-    }
-}
-
-/// Saves the drawings as one JSON string (what `@AppStorage` keeps) and reads them back.
-enum DrawingStore {
-    static func encode(_ drawings: [ChartDrawing]) -> String {
-        guard let data = try? JSONEncoder().encode(drawings) else { return "" }
-        return String(decoding: data, as: UTF8.self)
-    }
-
-    static func decode(_ json: String) -> [ChartDrawing] {
-        guard !json.isEmpty, let drawings = try? JSONDecoder().decode([ChartDrawing].self, from: Data(json.utf8)) else { return [] }
-        return drawings
     }
 }

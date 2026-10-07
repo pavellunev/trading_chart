@@ -67,6 +67,8 @@ struct ChartScreen: View {
 }
 ```
 
+The chart can remember which indicators are on between launches: give ``ChartPersistence`` the same catalog (see <doc:Persistence>).
+
 The font, the spacing, the height and the colours of the bar come from the theme (``TradingChartTheme/indicatorBarFont``, ``TradingChartTheme/indicatorBarSpacing``, ``TradingChartTheme/indicatorBarHeight``, ``TradingChartTheme/indicatorBarSelected``, ``TradingChartTheme/indicatorBarUnselected``, ``TradingChartTheme/indicatorBarDivider``).
 
 To write your own indicator, see <doc:Extending>.

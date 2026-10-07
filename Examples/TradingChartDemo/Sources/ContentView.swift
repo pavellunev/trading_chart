@@ -5,8 +5,6 @@ import TradingChart
 /// with the icon at the top right), the row of indicator switches and the drawing tools, with no cards and little air.
 struct ContentView: View {
     @State private var viewModel = DemoViewModel()
-    /// The drawings as JSON: `ChartDrawing` is `Codable`, so saving them is a matter of encoding the array.
-    @AppStorage("demo.drawings") private var storedDrawings = ""
 
     /// `-in-scroll`: the chart sits inside a vertical `ScrollView` with content above and below it, as on the trading screen of an
     /// app, to check that a swipe on the chart scrolls the chart and not the page.
@@ -44,15 +42,7 @@ struct ContentView: View {
             }
         }
         .task {
-            // `-no-restore`: start without the saved drawings (scripted screenshots and measurements).
-            if !ProcessInfo.processInfo.arguments.contains("-no-restore") {
-                viewModel.model.drawings = DrawingStore.decode(storedDrawings)
-            }
             await viewModel.start()
-        }
-        // Saved when a drawing is added, changed (at the end of a drag) or removed, not on every step of a drag.
-        .onChange(of: viewModel.drawingsRevision) {
-            storedDrawings = DrawingStore.encode(viewModel.model.drawings)
         }
     }
 

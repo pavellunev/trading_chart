@@ -42,6 +42,7 @@ Start with <doc:GettingStarted>. The architecture, the scroll patterns and the r
 
 - <doc:LiveData>
 - <doc:Customization>
+- <doc:Persistence>
 - <doc:Indicators>
 - <doc:Drawings>
 - <doc:Extending>
@@ -69,6 +70,12 @@ Start with <doc:GettingStarted>. The architecture, the scroll patterns and the r
 - ``TradingChartEvent``
 - ``CrosshairState``
 - ``CrosshairIndicatorValue``
+
+### Persistence
+
+- ``ChartPersistence``
+- ``ChartPreferencesStore``
+- ``UserDefaultsChartPreferencesStore``
 
 ### Appearance
 
