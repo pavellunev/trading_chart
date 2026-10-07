@@ -8,12 +8,33 @@ struct ContentView: View {
     /// The drawings as JSON: `ChartDrawing` is `Codable`, so saving them is a matter of encoding the array.
     @AppStorage("demo.drawings") private var storedDrawings = ""
 
+    /// `-in-scroll`: the chart sits inside a vertical `ScrollView` with content above and below it, as on the trading screen of an
+    /// app, to check that a swipe on the chart scrolls the chart and not the page.
+    private let isInScroll = ProcessInfo.processInfo.arguments.contains("-in-scroll")
+
     var body: some View {
-        VStack(spacing: 0) {
-            IntervalBar(viewModel: viewModel)
-            chart
-            IndicatorBar(model: viewModel.model, catalog: DemoViewModel.catalog)
-            DrawingToolbar(model: viewModel.model)
+        Group {
+            if isInScroll {
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(0..<3, id: \.self) { PageRow(title: "Above the chart \($0)", id: "page.above.\($0)") }
+                        VStack(spacing: 0) {
+                            IntervalBar(viewModel: viewModel)
+                            chart.frame(height: 420)
+                            IndicatorBar(model: viewModel.model, catalog: DemoViewModel.catalog)
+                            DrawingToolbar(model: viewModel.model)
+                        }
+                        ForEach(0..<12, id: \.self) { PageRow(title: "Below the chart \($0)", id: "page.below.\($0)") }
+                    }
+                }
+            } else {
+                VStack(spacing: 0) {
+                    IntervalBar(viewModel: viewModel)
+                    chart
+                    IndicatorBar(model: viewModel.model, catalog: DemoViewModel.catalog)
+                    DrawingToolbar(model: viewModel.model)
+                }
+            }
         }
         .padding(.horizontal, 8)
         .background(Color(.secondarySystemBackground).ignoresSafeArea())
@@ -46,6 +67,21 @@ struct ContentView: View {
                     ProgressView()
                 }
             }
+    }
+}
+
+/// A row of the page around the chart in the `-in-scroll` mode.
+private struct PageRow: View {
+    let title: String
+    let id: String
+
+    var body: some View {
+        Text(title)
+            .font(.subheadline)
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .padding(.horizontal, 12)
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 10))
+            .accessibilityIdentifier(id)
     }
 }
 

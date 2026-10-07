@@ -39,7 +39,7 @@ Layout of `Sources/TradingChart`:
 | Folder | Contents |
 | --- | --- |
 | `Model/` | `TradingChartModel` and its extensions (render state, scrolling by touch, the time domain, drawings, accessibility), `TradingChartConfiguration`, events |
-| `View/` | `TradingChartView`, `MainChartPane`, `IndicatorPane`, `PaneAxes`, `PaneOverlays`, `ChartInputLayer`, `DrawingViews`, the price badge, the legends, `IndicatorBar`, `SeriesStylePicker` |
+| `View/` | `TradingChartView`, `MainChartPane`, `IndicatorPane`, `PaneAxes`, `PaneOverlays`, `ChartInputLayer`, `ScrollAncestors`, `DrawingViews`, the price badge, the legends, `IndicatorBar`, `SeriesStylePicker` |
 | `Support/` | pure helpers: render window policy, Y transform maths, autoscale at the edges, axis ticks, label layout, drawing layout, legend naming, palette |
 | `Theme/` | `TradingChartTheme`, `PriceFormatter`, `TimeFormatter`, `TradingChartStrings` and its catalog lookup, the environment keys |
 | `Resources/` | `TradingChart.xcstrings`: the translations of `TradingChartStrings` in 14 languages |
@@ -269,6 +269,23 @@ press and a tap recogniser, and a second pan for dragging drawings) over the plo
   selected drawing moves it (anchor or body), any other pan scrolls. The tap recogniser waits for the pan and the long press to
   fail, so a tap is a touch that neither moved nor was held.
 
+- **Inside a scroll view.** A chart is often one block of a page (a SwiftUI `ScrollView`, a `List`), and the page's pan would take
+  the finger together with the chart's. The input layer shares the finger with every `UIScrollView` above it (`ScrollAncestorPans`,
+  found when the layer joins a window or moves in the hierarchy, held weakly). The chart's pan begins only for a mostly
+  horizontal drag (`PanDirection`: the translation at the start, the velocity only when there is none; the diagonal is the chart's)
+  when a scroll view above the chart can scroll vertically at that moment (`isInsideVerticalScrollView`, asked when the pan is about
+  to begin: scrolling is on and the pan is not switched off by the host, and the content is more than a point taller than the scroll
+  view or `alwaysBounceVertical` is set). Otherwise (no scroll view above, a horizontal pager, a `ScrollView` with
+  `.scrollDisabled(true)`) the chart scrolls by a drag in any direction as before. The pan of every scroll view above waits for
+  the chart's pan and the drawing pan to fail (`shouldBeRequiredToFailBy`), whether it scrolls vertically or not, and a vertical
+  drag fails them at once on a page, so the page starts with no delay; the layer's recognisers are never simultaneous with the
+  pan of a scroll view. Hence a horizontal pager above the chart (a paged `TabView`, a horizontal `ScrollView`) does not flip while
+  the chart scrolls: a horizontal drag that starts on the chart is the chart's, and the pager takes the drags that start
+  outside it. While a long press (the crosshair), a pinch (two fingers on a layer, watched by a recogniser that only watches) or
+  the drag of a drawing is in progress the layer switches the pans of all of these scroll views off and, when it ends or the layer
+  leaves the window, back on; a pan that the host had switched off, or whose scroll view the host switched off meanwhile
+  (`isScrollEnabled`), is left off.
+
 The scroll step of a fling is the same step that scripted sweeps measure, so the performance numbers are what a fling costs.
 
 ## History paging
@@ -355,14 +372,15 @@ These are findings of the iOS 27 simulator and Xcode 27.1; some may be fixed in 
 
 ## Testing and tools
 
-- `scripts/verify.sh` builds the package, runs every test and builds the demo; `--fast` builds the package and the demo without
-  running the tests. It is the definition of done and what CI runs.
+- `scripts/verify.sh` runs every test (built for iOS 17), builds the package for iOS 16 and builds the demo; `--fast` builds the
+  package for iOS 16 and the demo without running the tests. The build for iOS 16 follows the tests, so that DerivedData ends at
+  that deployment target and a `--fast` run that follows is incremental. It is the definition of done and what CI runs.
 - Unit tests (Swift Testing): `Tests/TradingChartCoreTests` and `Tests/TradingChartIndicatorsTests` need no UI (the indicator
   math is compared with reference values computed with TA-Lib); `Tests/TradingChartTests` drives the model, and some tests host a
   real `TradingChartView` in a window to count how often the panes are rebuilt. `PerformanceTests` (XCTest `measure`) only
   measure: there are no time assertions, so `verify.sh` cannot fail on timing.
 - The demo (`Examples/TradingChartDemo`) takes launch arguments for repeatable runs: `-script` (a timed list of actions: scroll,
-  zoom, crosshair, indicators, drawings, a fling), `-perf <scenario>` (frame times, JSON report) and `-diag` (live consistency
-  counters on a HUD). `scripts/frame-check.py` records the simulator and checks every frame of the video for blank panes, cut-off
+  zoom, crosshair, indicators, drawings, a fling), `-perf <scenario>` (frame times, JSON report), `-diag` (live consistency
+  counters on a HUD) and `-in-scroll` (the chart in the middle of a vertical page, to try the touches of a chart inside a scroll view). `scripts/frame-check.py` records the simulator and checks every frame of the video for blank panes, cut-off
   candles, labels that disagree with the autoscale and panes that disagree with each other: a pixel check that complements the
   model-level invariants. See [Performance.md](Performance.md).

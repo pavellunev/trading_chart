@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Definition of Done for the TradingChart package.
 #
-#   scripts/verify.sh          build + all tests (blocking), then the demo app if Examples/TradingChartDemo exists
-#   scripts/verify.sh --fast   build the package and the demo, without running the tests
+#   scripts/verify.sh          all tests (built for iOS 17), then the package build for iOS 16, then the demo app if
+#                              Examples/TradingChartDemo exists; every step is blocking
+#   scripts/verify.sh --fast   the package build for iOS 16 and the demo, without running the tests
 #
-# The package is iOS-only, so everything runs through xcodebuild on an iOS Simulator.
+# The package is iOS-only, so everything runs through xcodebuild on an iOS Simulator. The iOS 16 build comes last in the
+# full run, so that DerivedData ends at that deployment target and a --fast run that follows builds incrementally.
 # Environment overrides:
 #   DESTINATION   xcodebuild destination (default: the first booted iPhone, else an available one from scripts/pick-simulator.sh)
 #   DEMO_SCHEME   scheme of the demo project (default: TradingChartDemo)
-# Exit code: 0 on success, 1 on the first failing step.
+# Exit code: 0 on success, 1 on the first failing step, 2 on an unknown argument.
 
 set -uo pipefail
 
@@ -19,7 +21,7 @@ FAST=0
 for arg in "$@"; do
     case "$arg" in
         --fast) FAST=1 ;;
-        -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "verify.sh: unknown argument '$arg' (supported: --fast)" >&2; exit 2 ;;
     esac
 done
@@ -87,13 +89,16 @@ run_step() {
     echo "verify: PASS - $name"
 }
 
-if [ "$FAST" -eq 1 ]; then
-    run_step "package build" "BUILD (SUCCEEDED|FAILED)" \
-        xcodebuild -scheme "$PACKAGE_SCHEME" -destination "$DESTINATION" build
-else
-    run_step "package build + tests" "Test run with|TEST (SUCCEEDED|FAILED)" \
-        xcodebuild -scheme "$PACKAGE_SCHEME" -destination "$DESTINATION" build test
+# The chart UI and its tests need iOS 17, and older Xcode versions build the test bundles at the package minimum, so the
+# tests run with 17 explicitly. The libraries link from iOS 16 (the package's minimum), so they are built for it. The build
+# for iOS 16 is the last of the package steps: changing the deployment target recompiles the package, and DerivedData that
+# ends at 16 is what a following --fast run (the build for 16) finds up to date.
+if [ "$FAST" -eq 0 ]; then
+    run_step "package tests" "Test run with|TEST (SUCCEEDED|FAILED)" \
+        xcodebuild -scheme "$PACKAGE_SCHEME" -destination "$DESTINATION" IPHONEOS_DEPLOYMENT_TARGET=17.0 test
 fi
+run_step "package build (iOS 16)" "BUILD (SUCCEEDED|FAILED)" \
+    xcodebuild -scheme "$PACKAGE_SCHEME" -destination "$DESTINATION" IPHONEOS_DEPLOYMENT_TARGET=16.0 build
 
 if [ -f "$DEMO_DIR/project.yml" ]; then
     if ! command -v xcodegen >/dev/null 2>&1; then

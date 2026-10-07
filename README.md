@@ -87,7 +87,7 @@ Choose **File > Add Package Dependencies...**, enter the URL of this repository,
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.0")),
+    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.1")),
 ],
 targets: [
     .target(
@@ -616,6 +616,7 @@ This is the first version, and a few things are not there yet:
 - **No monthly bars.** A month is not a fixed number of seconds, and a `ChartInterval` is. Intervals of minutes, hours, days and weeks (on any weekday) are supported.
 - **One event handler.** `onEvent` holds a single closure (see [Events](#events)); the model does not have several subscribers.
 - **iOS 17 for the chart.** The chart UI needs iOS 17; `TradingChartCore` and `TradingChartIndicators` run on iOS 16.
+- **Scroll views around the chart.** A chart inside a vertical scroll view (a SwiftUI `ScrollView`, a `List`) shares the finger with the page: a drag that is mostly horizontal scrolls the chart, a vertical one scrolls the page, and the page stays still during the crosshair, a pinch and the drag of a drawing. A scroll view that cannot scroll vertically (a horizontal pager, a `ScrollView` with `.scrollDisabled(true)`) leaves the chart to take a drag in any direction. The pan of every scroll view above the chart waits for the chart's, so a horizontal pager above the chart (a paged `TabView`, a horizontal `ScrollView`) does not flip when a horizontal drag starts on the chart: that drag scrolls the chart, and the pager takes the drags that start outside it.
 
 ## Architecture
 
@@ -654,8 +655,8 @@ Everything the package computes itself (indicators, window math, autoscale) cost
 ## Development
 
 ```sh
-scripts/verify.sh          # build, all tests and the demo build
-scripts/verify.sh --fast   # builds the package and the demo, without running the tests
+scripts/verify.sh          # all tests, the package build for iOS 16 and the demo build
+scripts/verify.sh --fast   # builds the package for iOS 16 and the demo, without running the tests
 ```
 
 The package is iOS-only, so everything runs through `xcodebuild` on an iOS Simulator. Set `DESTINATION` (for example `platform=iOS Simulator,name=iPhone 16`) to choose the device. The demo needs `xcodegen`. See [CHANGELOG.md](CHANGELOG.md) for what changed.

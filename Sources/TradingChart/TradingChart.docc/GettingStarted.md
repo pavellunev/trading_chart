@@ -8,7 +8,7 @@ In Xcode choose **File > Add Package Dependencies...**, enter `https://github.co
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.0")),
+    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.1")),
 ],
 targets: [
     .target(

@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-07
+
+### Fixed
+
+- A chart inside a vertical scroll view (a SwiftUI `ScrollView`, a `List`, a `UIScrollView`) no longer scrolls the page along with
+  itself. A horizontal drag on the chart scrolls only the chart and a vertical one only the page (which starts at once); while the
+  crosshair (long press and drag), a pinch or the drag of a drawing is in progress the page stays still. A chart with no scroll
+  view around it, or one in a scroll view that cannot scroll vertically (a horizontal pager, a `ScrollView` with
+  `.scrollDisabled(true)`), takes a drag in any direction as before.
+
+### Changed
+
+- A horizontal scroll view above the chart (a paged `TabView`, a horizontal `ScrollView`) no longer flips together with the
+  chart: a horizontal drag that starts on the chart scrolls the chart and not the pager, and the pager's own drag begins only
+  where the chart is not under the finger. This is the same arbitration as for a vertical page, and it applies to every
+  `UIScrollView` above the chart.
+
 ## [0.1.0] - 2026-10-07
 
 The first version.
@@ -63,5 +80,6 @@ The first version.
 - Monthly bars are not supported: a month is not a fixed number of seconds, and a `ChartInterval` is.
 - `onEvent` holds one handler; the model does not have several subscribers.
 
-[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.0...HEAD
+[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.1...HEAD
+[0.1.1]: https://github.com/pavellunev/trading_chart/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/pavellunev/trading_chart/releases/tag/0.1.0
