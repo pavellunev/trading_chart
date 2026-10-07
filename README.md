@@ -49,7 +49,7 @@ A native SwiftUI trading chart for iOS: candlesticks, lines and areas with techn
 
 - Chart UI (`TradingChart`): iOS 17.0 or later
 - `TradingChartCore` and `TradingChartIndicators`: iOS 16.0 or later
-- Swift 6.0 or later (Xcode 16 or later)
+- Xcode 26 or later (Swift 6.2); CI builds with the newest stable Xcode on GitHub's macOS runners
 
 The package can be added to apps targeting iOS 16: every type of the chart UI is marked `@available(iOS 17.0, *)`, so gate the chart with `if #available(iOS 17, *)` and show something else (a web chart, say) on iOS 16:
 
@@ -87,7 +87,7 @@ Choose **File > Add Package Dependencies...**, enter the URL of this repository,
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.1")),
+    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.2")),
 ],
 targets: [
     .target(

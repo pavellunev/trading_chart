@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-07
+
+### Fixed
+
+- The package compiles with Xcode 26 (Swift 6.2): a closure in the overlay of the main pane captured a local constant
+  declared after it, which Swift 6.2 rejects.
+
+### Changed
+
+- The requirements name the oldest toolchain the package is built with in CI: Xcode 26 (Swift 6.2).
+
 ## [0.1.1] - 2026-10-07
 
 ### Fixed
@@ -80,6 +91,7 @@ The first version.
 - Monthly bars are not supported: a month is not a fixed number of seconds, and a `ChartInterval` is.
 - `onEvent` holds one handler; the model does not have several subscribers.
 
-[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.1...HEAD
+[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.2...HEAD
+[0.1.2]: https://github.com/pavellunev/trading_chart/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/pavellunev/trading_chart/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/pavellunev/trading_chart/releases/tag/0.1.0

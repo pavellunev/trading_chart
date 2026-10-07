@@ -8,7 +8,7 @@ In Xcode choose **File > Add Package Dependencies...**, enter `https://github.co
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.1")),
+    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.2")),
 ],
 targets: [
     .target(
@@ -20,7 +20,7 @@ targets: [
 ]
 ```
 
-The chart UI (the `TradingChart` module) needs iOS 17 or later; `TradingChartCore` and `TradingChartIndicators` need iOS 16 or later. The package needs a Swift 6 toolchain.
+The chart UI (the `TradingChart` module) needs iOS 17 or later; `TradingChartCore` and `TradingChartIndicators` need iOS 16 or later. The package needs Xcode 26 or later (Swift 6.2).
 
 ### Apps that target iOS 16
 
