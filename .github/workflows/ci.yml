@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build and test
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select the newest Xcode (not a beta or a release candidate)
+        run: |
+          xcode="$(ls /Applications | grep '^Xcode.*\.app$' | grep -viE 'beta|rc|candidate|preview' | sort -V | tail -1)"
+          if [ -z "$xcode" ]; then
+            echo "No release version of Xcode is installed" >&2
+            exit 1
+          fi
+          echo "Using $xcode"
+          sudo xcode-select -s "/Applications/$xcode/Contents/Developer"
+          xcodebuild -version
+
+      - name: Pick an iPhone simulator
+        id: simulator
+        run: |
+          udid="$(scripts/pick-simulator.sh)"
+          echo "Using simulator $udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Install XcodeGen (a pinned version, so that the drift check below is deterministic)
+        env:
+          XCODEGEN_VERSION: "2.46.0"
+          XCODEGEN_SHA256: "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806"
+        run: |
+          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          echo "${XCODEGEN_SHA256}  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
+
+      - name: Check that the checked-in demo project is current
+        run: |
+          xcodegen generate --spec Examples/TradingChartDemo/project.yml --quiet
+          git diff --exit-code -- Examples/TradingChartDemo/TradingChartDemo.xcodeproj
+
+      - name: Verify
+        env:
+          DESTINATION: platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}
+        run: scripts/verify.sh

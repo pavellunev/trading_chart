@@ -1,0 +1,7 @@
+.build/
+DerivedData/
+build/
+.swiftpm/
+xcuserdata/
+.DS_Store
+frame-check-out/
