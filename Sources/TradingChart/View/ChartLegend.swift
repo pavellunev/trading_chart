@@ -40,48 +40,43 @@ struct LegendFormatter {
         return (state.value - price) / abs(price) * 100
     }
 
-    /// The legend row of one indicator: `SMA(20): 120,641.21`, or `BB(20,2) UP: … MB: … DN: …` with a title when it has
-    /// several values. Labels and values wear the colour of their line; histogram values wear the colour of their tone
-    /// and their labels the label colour. An indicator without values (warm-up) shows its title only.
+    /// The legend items of one indicator, each one unbreakable: `SMA(20): 120,641.21`, or `BB(20,2)` followed by `MB: …`,
+    /// `UP: …` and `DN: …` when it has several values. The first item sets the indicator apart from the one before it, and a
+    /// title stays on one line with the first value after it. Labels and values wear the colour of their line; histogram
+    /// values wear the colour of their tone and their labels the label colour. An indicator without values (warm-up) shows its
+    /// title only.
     ///
     /// - Parameter context: How the values are formatted; panes use ``PriceFormatter/Context/compact``.
-    func indicatorRow(
+    func indicatorItems(
         name: String,
         values: [CrosshairIndicatorValue],
         context: PriceFormatter.Context
-    ) -> AttributedString {
-        var row = AttributedString()
+    ) -> [LegendItem] {
+        var items: [AttributedString] = []
+        var hasTitle = false
         if values.isEmpty {
-            append(&row, LegendNaming.title(for: name), color: theme.legendLabel)
+            items.append(title(LegendNaming.title(for: name)))
         } else if values.count == 1, values[0].name == name {
-            appendItem(&row, label: LegendNaming.title(for: name), value: values[0], context: context)
+            items.append(item(label: LegendNaming.title(for: name), value: values[0], context: context))
         } else {
             if LegendNaming.hasParameters(name) {
-                append(&row, LegendNaming.title(for: name), color: theme.legendLabel)
+                items.append(title(LegendNaming.title(for: name)))
+                hasTitle = true
             }
             // The main series of an indicator named after it (the bars of a volume) comes first, before its averages.
             let word = name.split(separator: " ").first.map(String.init) ?? name
             let ordered = values.filter { $0.tone != nil && $0.name == word } + values.filter { !($0.tone != nil && $0.name == word) }
             for value in ordered {
-                appendItem(
-                    &row,
+                items.append(item(
                     label: LegendNaming.elementLabel(valueName: value.name, indicatorName: name),
                     value: value,
                     context: context
-                )
+                ))
             }
         }
-        return row
-    }
-
-    /// The rows joined into the header line; indicators are set apart by three spaces.
-    func header(_ rows: [AttributedString]) -> AttributedString {
-        var line = AttributedString()
-        for row in rows where !row.characters.isEmpty {
-            if !line.characters.isEmpty { line += AttributedString("   ") }
-            line += row
+        return items.enumerated().map { index, text in
+            LegendItem(text: text, startsGroup: index == 0, joinsPrevious: hasTitle && index == 1)
         }
-        return line
     }
 
     /// The rows of the crosshair tooltip: time, the prices of the bar, its change and range, its volume.
@@ -123,16 +118,23 @@ struct LegendFormatter {
         value.formatted(.number.precision(.fractionLength(2)).sign(strategy: .always())) + "%"
     }
 
-    private func appendItem(
-        _ row: inout AttributedString,
+    private func title(_ text: String) -> AttributedString {
+        var unit = AttributedString()
+        append(&unit, text, color: theme.legendLabel)
+        return unit
+    }
+
+    private func item(
         label: String,
         value: CrosshairIndicatorValue,
         context: PriceFormatter.Context
-    ) {
+    ) -> AttributedString {
         let valueColor = theme.legendColor(for: value)
         let labelColor = value.tone == nil ? valueColor : theme.legendLabel
-        append(&row, label + ":", color: labelColor)
-        append(&row, priceFormatter.format(value.value, context: context), color: valueColor)
+        var unit = AttributedString()
+        append(&unit, label + ":", color: labelColor)
+        append(&unit, priceFormatter.format(value.value, context: context), color: valueColor)
+        return unit
     }
 
     private func append(_ row: inout AttributedString, _ text: String, color: Color) {
@@ -141,6 +143,16 @@ struct LegendFormatter {
         part.foregroundColor = color
         row += part
     }
+}
+
+/// One unbreakable piece of a legend: the title of an indicator, or a label with its value.
+@available(iOS 17.0, *)
+struct LegendItem: Equatable {
+    var text: AttributedString
+    /// Whether it is the first item of an indicator: a wider gap sets it apart from the indicator before it.
+    var startsGroup: Bool
+    /// Whether it is the first value after the title of an indicator: it stays on one line with the title.
+    var joinsPrevious = false
 }
 
 /// One row of the crosshair tooltip.
@@ -156,26 +168,153 @@ struct TooltipRow: Equatable {
     var tint: Tint = .none
 }
 
-/// The legend of a pane: a single line above the plot with the values of the selected (or the newest) bar.
-/// Without room it scrolls sideways instead of wrapping; it takes no part in the plot, so it covers no data.
+/// The items of a legend as views, one `Text` each, for ``LegendFlowLayout``: its subviews, since the layout looks through
+/// this view.
 @available(iOS 17.0, *)
-struct LegendHeader: View {
-    let text: AttributedString
+struct LegendItems: View {
+    let items: [LegendItem]
 
     @Environment(\.tradingChartTheme) private var theme
 
     var body: some View {
-        ScrollView(.horizontal) {
-            Text(text)
+        ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+            Text(item.text)
                 .font(theme.legendFont)
                 .foregroundStyle(theme.legendText)
                 .lineLimit(1)
-                .fixedSize()
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
+                .layoutValue(key: LegendGapBefore.self, value: item.startsGroup ? LegendFlow.groupGap : LegendFlow.itemGap)
+                .layoutValue(key: LegendJoinsPrevious.self, value: item.joinsPrevious)
         }
-        .scrollIndicators(.hidden)
-        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+    }
+}
+
+@available(iOS 17.0, *)
+private struct LegendGapBefore: LayoutValueKey {
+    static let defaultValue: CGFloat = LegendFlow.itemGap
+}
+
+@available(iOS 17.0, *)
+private struct LegendJoinsPrevious: LayoutValueKey {
+    static let defaultValue = false
+}
+
+@available(iOS 17.0, *)
+private struct LegendIsAccessory: LayoutValueKey {
+    static let defaultValue = false
+}
+
+@available(iOS 17.0, *)
+extension View {
+    /// Marks the view as the control at the trailing edge of the first line of a ``LegendFlowLayout``.
+    func legendAccessory() -> some View {
+        layoutValue(key: LegendIsAccessory.self, value: true)
+    }
+}
+
+/// The legend of a pane: the items above the plot, left to right, wrapping onto further lines when a line is full (an item is
+/// never split). A view marked `legendAccessory()` sits at the trailing edge of the first line, which is
+/// shorter by its width and as tall as it. The legend takes the width it is offered and the height of its lines, so the plot
+/// below is whatever is left of the pane; it takes no part in the plot, so it covers no data.
+///
+/// With a `floor` the legend is never shorter than that at the width the floor was measured at (see ``StableLegend``), as long
+/// as it has any text: with none there is nothing to hold, and what is left (the accessory) takes its own height.
+@available(iOS 17.0, *)
+struct LegendFlowLayout: Layout {
+    var floor: LegendHeightFloor?
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let placement = Self.placement(width: proposal.width, subviews: subviews).placement
+        // A legend with no text (it is off, or nothing is listed yet) is as tall as its accessory, whatever it was before.
+        guard placement.lineCount > 0 else { return placement.size }
+        return floor?.applied(to: placement.size) ?? placement.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let (placement, items, accessory) = Self.placement(width: bounds.width, subviews: subviews)
+        for (subview, frame) in zip(items, placement.frames) {
+            subview.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+        if let accessory, let frame = placement.accessory {
+            accessory.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+    }
+
+    /// The pure placement of the subviews at their ideal sizes, and the subviews it is for.
+    private static func placement(
+        width: CGFloat?,
+        subviews: Subviews
+    ) -> (placement: LegendFlow.Placement, items: [LayoutSubview], accessory: LayoutSubview?) {
+        let accessory = subviews.first { $0[LegendIsAccessory.self] }
+        let items = subviews.filter { !$0[LegendIsAccessory.self] }
+        let placement = LegendFlow.place(
+            items.map {
+                LegendFlowItem(
+                    size: $0.sizeThatFits(.unspecified),
+                    gapBefore: $0[LegendGapBefore.self],
+                    joinsPrevious: $0[LegendJoinsPrevious.self]
+                )
+            },
+            accessory: accessory?.sizeThatFits(.unspecified),
+            width: width.flatMap { $0.isFinite ? $0 : nil }
+        )
+        return (placement, items, accessory)
+    }
+}
+
+/// A ``LegendFlowLayout`` whose height does not shrink while the legend is the same one (``LegendHeightHold``), so that the plot
+/// below it does not move up and down as the crosshair crosses bars whose values take fewer or more digits, or as a live tick
+/// changes the digits of the newest bar. The state is the pane's own: one legend per pane.
+///
+/// The height is measured (the legend is laid out first, then its size is looked at) and held as the floor of the next layout; it
+/// starts again from the legend as it is when anything in its ``LegendHeightHold/Key`` changes (the indicators, the style, whether
+/// the legend is shown, the style picker, the font, the price formatter), when the width changes and when the crosshair ends.
+@available(iOS 17.0, *)
+struct StableLegend<Content: View>: View {
+    let model: TradingChartModel
+    /// The indicators the legend lists, in order.
+    let indicatorIDs: [String]
+    private let content: Content
+
+    @Environment(\.tradingChartTheme) private var theme
+    @Environment(\.tradingChartPriceFormatter) private var priceFormatter
+    @State private var hold = LegendHeightHold()
+
+    init(model: TradingChartModel, indicatorIDs: [String], @ViewBuilder content: () -> Content) {
+        self.model = model
+        self.indicatorIDs = indicatorIDs
+        self.content = content()
+    }
+
+    var body: some View {
+        let key = LegendHeightHold.Key(
+            indicatorIDs: indicatorIDs,
+            style: model.style,
+            showsLegend: model.configuration.showsLegend,
+            hasStylePicker: model.configuration.stylePicker != nil,
+            font: theme.legendFont,
+            formatter: priceFormatter.identity
+        )
+        LegendFlowLayout(floor: hold.floor(for: key)) {
+            content
+        }
+        .background {
+            // Made anew, so that it reports the size anew, whenever what is measured changes: a legend of another height
+            // would otherwise report nothing when it happens to be as tall as the one before.
+            Color.clear
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { hold.observe($0, key: key) }
+                .id(hold.token(for: key))
+        }
+        .onChange(of: model.crosshairTime != nil) { wasActive, isActive in
+            if wasActive, !isActive { hold.crosshairEnded() }
+        }
     }
 }
 

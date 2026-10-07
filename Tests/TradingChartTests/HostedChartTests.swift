@@ -11,9 +11,12 @@ struct HostedChartTests {
         RunLoop.current.run(until: Date().addingTimeInterval(seconds))
     }
 
-    private func makeHost(_ model: TradingChartModel) -> (window: UIWindow, controller: UIHostingController<some View>) {
+    private func makeHost(
+        _ model: TradingChartModel,
+        width: CGFloat = 393
+    ) -> (window: UIWindow, controller: UIHostingController<some View>) {
         let controller = UIHostingController(rootView: TradingChartView(model: model).padding(8))
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 393, height: 760))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: 760))
         window.rootViewController = controller
         window.makeKeyAndVisible()
         controller.view.frame = window.bounds
@@ -174,6 +177,120 @@ struct HostedChartTests {
         #expect(!model.isAtLiveEdge)
         #expect(model.badgeSize.width > atLiveEdge.width)
         #expect(model.badgeSize.height == atLiveEdge.height)
+    }
+
+    @Test("a legend that wraps takes its height from the plot below it, which is measured: nothing is cut and every frame stays consistent")
+    func wrappedLegendTakesItsHeightFromThePlot() throws {
+        /// A phone-wide chart with the pane indicators of the hosting model and `overlays` over the price.
+        func makeModel(overlays: [any ChartIndicator]) -> (model: TradingChartModel, clock: ManualClock) {
+            let (model, clock) = swingingModelForHosting()
+            model.configuration.stylePicker = StylePickerOptions()
+            model.indicators = overlays + [Volume(), RSI()]
+            return (model, clock)
+        }
+        /// The height of the plot of the main pane, as the input layer over it measures it.
+        func mainPlotHeight(overlays: [any ChartIndicator]) throws -> CGFloat {
+            let host = makeHost(makeModel(overlays: overlays).model, width: 320)
+            defer { host.window.isHidden = true }
+            spin(1.5)
+            return try #require(descendants(of: host.controller.view, ofType: ChartInputView.self).first).bounds.height
+        }
+
+        let oneLine = try mainPlotHeight(overlays: [SMA(period: 20)])
+        let wrapped = try mainPlotHeight(overlays: [SMA(period: 20), EMA(period: 50), BollingerBands()])
+        // The three legends do not fit one line of a phone beside the picker: at least one more line (17 points) is taken from
+        // the plot, and the panes below keep their height, so the plot is that much shorter.
+        #expect(wrapped <= oneLine - 17, "one line \(oneLine), wrapped \(wrapped)")
+        #expect(wrapped > 150, "\(wrapped)")
+
+        // With the wrapped legend: a scroll and a crosshair across the window.
+        let (model, clock) = makeModel(overlays: [SMA(period: 20), EMA(period: 50), BollingerBands()])
+        let host = makeHost(model, width: 320)
+        defer { host.window.isHidden = true }
+        spin(1.5)
+        let live = model.scrollPosition
+        let barSeconds = model.series.interval.seconds
+        ChartDiagnostics.reset(model)
+        for step in 0...60 {
+            let depth = Double(step) / 60
+            clock.advance(by: 0.0167)
+            model.scrollPosition = live.addingTimeInterval(-depth * 200 * barSeconds)
+            spin(0.016)
+        }
+        let visible = model.visibleTimeRange
+        for step in 0..<20 {
+            model.crosshairTime = visible.lowerBound.addingTimeInterval(Double(step) * model.visibleDuration / 20)
+            spin(0.02)
+        }
+        #expect(model.crosshair != nil)
+        #expect(ChartDiagnostics.violations(of: model).total == 0)
+    }
+
+    @Test("the plot keeps its height while the crosshair crosses bars whose legend takes fewer or more lines, and takes the shorter legend back when the crosshair ends")
+    func crosshairKeepsThePlotHeight() throws {
+        // Bars of 5,000,000 (long numbers in the legend) first, then bars of about 95: the newest bar, which the legend shows
+        // without a crosshair, has the short legend.
+        func candles(_ range: Range<Int>, around price: Double) -> [Candle] {
+            range.map { index in
+                let close = price + Double(index % 7)
+                return Candle(
+                    time: date(baseTime + Double(index) * 60),
+                    open: close - 1,
+                    high: close + 1,
+                    low: close - 2,
+                    close: close,
+                    volume: 10
+                )
+            }
+        }
+        func makeModel() -> TradingChartModel {
+            let series = ChartSeries(candles: candles(0..<300, around: 5_000_000) + candles(300..<600, around: 95), interval: .minutes(1))
+            let model = TradingChartModel(series: series, style: .candles)
+            model.configuration.stylePicker = StylePickerOptions()
+            model.indicators = [SMA(period: 20), EMA(period: 50), BollingerBands(), Volume(), RSI()]
+            return model
+        }
+        let longBar = date(baseTime + 150 * 60)
+        let shortBar = date(baseTime + 450 * 60)
+        func plotHeight(_ host: (window: UIWindow, controller: UIHostingController<some View>)) throws -> CGFloat {
+            try #require(descendants(of: host.controller.view, ofType: ChartInputView.self).first).bounds.height
+        }
+
+        // What each legend takes on its own: a chart that starts with the crosshair on the bar.
+        let live = makeHost(makeModel(), width: 320)
+        defer { live.window.isHidden = true }
+        spin(1.5)
+        let shortLegend = try plotHeight(live)
+
+        let crossed = makeModel()
+        crossed.crosshairTime = longBar
+        let fresh = makeHost(crossed, width: 320)
+        defer { fresh.window.isHidden = true }
+        spin(1.5)
+        let longLegend = try plotHeight(fresh)
+        #expect(longLegend <= shortLegend - 17, "short \(shortLegend), long \(longLegend)")
+
+        // One chart: the crosshair goes to the long bar (the legend grows, the plot shortens) and then back and forth over
+        // long and short bars: the plot stays as short as it got.
+        let model = makeModel()
+        let host = makeHost(model, width: 320)
+        defer { host.window.isHidden = true }
+        spin(1.5)
+        #expect(try plotHeight(host) == shortLegend)
+
+        model.crosshairTime = longBar
+        spin(0.3)
+        #expect(try plotHeight(host) == longLegend)
+        for step in 0..<12 {
+            model.crosshairTime = step.isMultiple(of: 2) ? shortBar : longBar.addingTimeInterval(Double(step) * 60)
+            spin(0.1)
+            #expect(try plotHeight(host) == longLegend, "step \(step)")
+        }
+
+        // The end of the crosshair measures the legend again: the newest bar has the short one.
+        model.crosshairTime = nil
+        spin(0.5)
+        #expect(try plotHeight(host) == shortLegend)
     }
 
     @Test("a live tick on the newest bar, far from the window, rebuilds neither the panes nor the charts in them")

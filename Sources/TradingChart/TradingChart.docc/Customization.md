@@ -52,6 +52,8 @@ TradingChartView(model: model)
 
 The defaults, ``PriceFormatter/automatic`` and ``TimeFormatter/automatic``, pick the number of decimals from the magnitude of the price (and follow the locale), and the time format from the interval. ``PriceFormatter/fractionDigits(_:)`` always shows the same number of decimals.
 
+Replacing the price formatter (for example when the tick size of an instrument arrives and fewer digits are shown) makes the legend above each pane measure its height again, so it can shrink at once. A formatter made anew counts as a replaced one even when it formats alike: make it once, and not on every pass of your view, when the legend should keep its height while values change.
+
 ## Strings
 
 What the chart says by itself (what VoiceOver reads and offers, the "Scroll to latest" badge, the "Loading history" spinner, the rows of the crosshair tooltip, the entries of the style picker) is translated into 14 languages (English, German, Spanish, French, Hindi, Indonesian, Italian, Dutch, Brazilian Portuguese, Russian, Turkish, Vietnamese, Simplified Chinese and Arabic) by resources of the package. ``TradingChartStrings/standard`` is in the language of the app (the one its main bundle is localized to, so an app that is only in English gets English whatever the device is set to), which is what the chart says when nothing is set. An app with a language of its own passes it with the `tradingChartStrings(_:)` modifier and ``TradingChartStrings/localized(for:)``; a locale that the package has no language for gets English. Change single words on top of a language:

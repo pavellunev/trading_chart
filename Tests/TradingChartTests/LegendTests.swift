@@ -11,6 +11,15 @@ private func text(_ row: AttributedString) -> String {
     String(row.characters)
 }
 
+private func text(_ item: LegendItem) -> String {
+    text(item.text)
+}
+
+/// The items of an indicator laid out in one line, the way a wide legend shows them.
+private func oneLine(_ items: [LegendItem]) -> AttributedString {
+    items.reduce(AttributedString()) { $0.characters.isEmpty ? $1.text : $0 + AttributedString(" ") + $1.text }
+}
+
 /// The colour of the first run that contains `fragment`.
 private func color(of fragment: String, in row: AttributedString) -> Color? {
     for run in row.runs where String(row[run.range].characters).contains(fragment) {
@@ -80,9 +89,10 @@ struct LegendRowTests {
 
     @Test("a single line shows its title and value in the colour of the line")
     func singleLine() {
-        let row = formatter.indicatorRow(name: "SMA 20", values: [line("SMA 20", 120_641.21, slot: 0)], context: .legend)
+        let items = formatter.indicatorItems(name: "SMA 20", values: [line("SMA 20", 120_641.21, slot: 0)], context: .legend)
+        let row = oneLine(items)
 
-        #expect(text(row) == "SMA(20): p120641.21")
+        #expect(items.map(text) == ["SMA(20): p120641.21"])
         #expect(color(of: "SMA(20):", in: row) == theme.paletteColor(at: 0))
         #expect(color(of: "p120641.21", in: row) == theme.paletteColor(at: 0))
     }
@@ -94,9 +104,11 @@ struct LegendRowTests {
             line("BB Upper", 3, slot: 0),
             line("BB Lower", 1, slot: 0),
         ]
-        let row = formatter.indicatorRow(name: "BB 20 2", values: values, context: .legend)
+        let items = formatter.indicatorItems(name: "BB 20 2", values: values, context: .legend)
+        let row = oneLine(items)
 
-        #expect(text(row) == "BB(20,2) MB: p2.00 UP: p3.00 DN: p1.00")
+        // The title and every labelled value are items of their own: a line break can fall between them, never inside one.
+        #expect(items.map(text) == ["BB(20,2)", "MB: p2.00", "UP: p3.00", "DN: p1.00"])
         #expect(color(of: "BB(20,2)", in: row) == theme.legendLabel)
         #expect(color(of: "UP:", in: row) == theme.paletteColor(at: 0))
     }
@@ -108,9 +120,10 @@ struct LegendRowTests {
             line("Volume MA 20", 38.2, slot: 1, id: "v"),
             CrosshairIndicatorValue(indicatorID: "v", name: "Volume", value: 45.5, tone: .positive),
         ]
-        let row = formatter.indicatorRow(name: "Volume", values: values, context: .compact)
+        let items = formatter.indicatorItems(name: "Volume", values: values, context: .compact)
+        let row = oneLine(items)
 
-        #expect(text(row) == "VOL: c45.50 MA(20): c38.20")
+        #expect(items.map(text) == ["VOL: c45.50", "MA(20): c38.20"])
         #expect(color(of: "VOL:", in: row) == theme.legendLabel)
         #expect(color(of: "c45.50", in: row) == theme.bullish)
         #expect(color(of: "MA(20):", in: row) == theme.paletteColor(at: 1))
@@ -123,9 +136,10 @@ struct LegendRowTests {
             line("Signal", 439.43, slot: 3, id: "m"),
             CrosshairIndicatorValue(indicatorID: "m", name: "Histogram", value: -6.48, tone: .negative),
         ]
-        let row = formatter.indicatorRow(name: "MACD 12 26 9", values: values, context: .compact)
+        let items = formatter.indicatorItems(name: "MACD 12 26 9", values: values, context: .compact)
+        let row = oneLine(items)
 
-        #expect(text(row) == "MACD(12,26,9) MACD: c432.95 SIGNAL: c439.43 HIST: c-6.48")
+        #expect(items.map(text) == ["MACD(12,26,9)", "MACD: c432.95", "SIGNAL: c439.43", "HIST: c-6.48"])
         #expect(color(of: "c-6.48", in: row) == theme.bearish)
         #expect(color(of: "SIGNAL:", in: row) == theme.paletteColor(at: 3))
     }
@@ -133,24 +147,55 @@ struct LegendRowTests {
     @Test("the context decides how values are formatted")
     func context() {
         let values = [line("RSI 14", 63.515, slot: 0)]
-        #expect(text(formatter.indicatorRow(name: "RSI 14", values: values, context: .compact)) == "RSI(14): c63.52")
-        #expect(text(formatter.indicatorRow(name: "RSI 14", values: values, context: .legend)) == "RSI(14): p63.52")
+        #expect(formatter.indicatorItems(name: "RSI 14", values: values, context: .compact).map(text) == ["RSI(14): c63.52"])
+        #expect(formatter.indicatorItems(name: "RSI 14", values: values, context: .legend).map(text) == ["RSI(14): p63.52"])
     }
 
     @Test("an indicator that has no value yet shows its title")
     func warmUp() {
-        let row = formatter.indicatorRow(name: "SMA 20", values: [], context: .legend)
-        #expect(text(row) == "SMA(20)")
+        let items = formatter.indicatorItems(name: "SMA 20", values: [], context: .legend)
+        let row = oneLine(items)
+        #expect(items.map(text) == ["SMA(20)"])
         #expect(color(of: "SMA(20)", in: row) == theme.legendLabel)
     }
 
-    @Test("the header joins the rows with three spaces and skips empty ones")
-    func header() {
-        let first = formatter.indicatorRow(name: "SMA 20", values: [line("SMA 20", 1, slot: 0)], context: .legend)
-        let second = formatter.indicatorRow(name: "RSI 14", values: [line("RSI 14", 2, slot: 1)], context: .legend)
+    @Test("the first item of an indicator sets it apart from the one before; a title joins the first value after it")
+    func groups() {
+        let single = formatter.indicatorItems(name: "SMA 20", values: [line("SMA 20", 1, slot: 0)], context: .legend)
+        #expect(single.map(\.startsGroup) == [true])
+        #expect(single.map(\.joinsPrevious) == [false])
 
-        #expect(text(formatter.header([first, AttributedString(), second])) == "SMA(20): p1.00   RSI(14): p2.00")
-        #expect(text(formatter.header([])) == "")
+        let bands = formatter.indicatorItems(
+            name: "BB 20 2",
+            values: [line("BB Middle", 2, slot: 0), line("BB Upper", 3, slot: 0), line("BB Lower", 1, slot: 0)],
+            context: .legend
+        )
+        #expect(bands.map(\.startsGroup) == [true, false, false, false])
+        // Only the first pair is held to the title: the others go where they fit.
+        #expect(bands.map(\.joinsPrevious) == [false, true, false, false])
+
+        let macd = formatter.indicatorItems(
+            name: "MACD 12 26 9",
+            values: [line("MACD", 1, slot: 2, id: "m"), line("Signal", 2, slot: 3, id: "m")],
+            context: .compact
+        )
+        #expect(macd.map(\.joinsPrevious) == [false, true, false])
+
+        // An indicator without a title has nothing to hold together: its first two items are two pairs.
+        let volume = formatter.indicatorItems(
+            name: "Volume",
+            values: [
+                line("Volume MA 20", 38.2, slot: 1, id: "v"),
+                CrosshairIndicatorValue(indicatorID: "v", name: "Volume", value: 45.5, tone: .positive),
+            ],
+            context: .compact
+        )
+        #expect(volume.map(\.startsGroup) == [true, false])
+        #expect(volume.map(\.joinsPrevious) == [false, false])
+
+        // Warm-up: the title alone, with no value to join.
+        let warmUp = formatter.indicatorItems(name: "BB 20 2", values: [], context: .legend)
+        #expect(warmUp.map(\.joinsPrevious) == [false])
     }
 }
 

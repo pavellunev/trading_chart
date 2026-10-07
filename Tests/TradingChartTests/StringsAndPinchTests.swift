@@ -80,13 +80,13 @@ struct StringsTests {
     }
     #endif
 
-    @Test("the legend formatter holds no strings unless it is given some: the legend rows, built per crosshair step, copy none")
+    @Test("the legend formatter holds no strings unless it is given some: the legend items, built per crosshair step, copy none")
     func legendFormatterHoldsNoStrings() {
         let value = CrosshairIndicatorValue(indicatorID: "sma", name: "SMA 20", value: 1, paletteIndex: 0)
         let formatter = LegendFormatter(theme: TradingChartTheme(), priceFormatter: plainFormatter)
 
         #expect(formatter.strings == nil)
-        _ = formatter.header([formatter.indicatorRow(name: "SMA 20", values: [value], context: .legend)])
+        _ = formatter.indicatorItems(name: "SMA 20", values: [value], context: .legend)
         #expect(formatter.strings == nil)
         #expect(LegendFormatter(theme: TradingChartTheme(), priceFormatter: plainFormatter, strings: german()).strings == german())
     }

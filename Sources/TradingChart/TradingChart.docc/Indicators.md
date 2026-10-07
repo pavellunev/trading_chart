@@ -35,7 +35,7 @@ Bars inside the warm-up period of an indicator (the first 19 bars of a 20-bar av
 
 An indicator with ``IndicatorPlacement/overlay`` is drawn over the price and shares its axis; its values take part in the autoscale. An indicator with ``IndicatorPlacement/pane`` gets a pane of its own below the price, with its own axis: the height is ``TradingChartConfiguration/paneHeight``, the panes scroll together with the price, and the crosshair runs through all of them. A pane indicator whose output has nothing to draw (a ``Volume`` of a series without volumes) gets no pane.
 
-The legend row above each pane lists the values of its indicators: at the crosshair when there is one, at the newest bar otherwise.
+The legend row above each pane lists the values of its indicators: at the crosshair when there is one, at the newest bar otherwise. A legend that does not fit one line wraps onto further lines (an item such as `UP: 122,147.38` is never split, and the title of an indicator stays with its first value), and the plot below it is that much shorter. The legend does not shrink while the crosshair moves or the prices tick, so the plot does not jump: it takes the lines it needs again when the crosshair ends, or when the indicators, the chart style or the width change.
 
 ## Colours
 

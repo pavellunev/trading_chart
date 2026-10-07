@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The legend above a pane wraps onto further lines instead of scrolling sideways. Every item (the `NAME(params)` title of an
+  indicator, and each `KEY: value` pair) stays whole and the items flow from left to right, so `BB(20,2) MB: … UP: … DN: …` is
+  no longer cut off on a phone. The style picker stays at the right end of the first line of the main pane's legend. The legend
+  grows in height as it needs, and the plot below it takes the rest of the pane: a pane keeps the height it is given. The title
+  of an indicator stays on one line with its first value (`BB(20,2) MB: …` moves to the next line together, it is not left at the
+  end of one). The height of a legend does not shrink while the crosshair moves across bars or live ticks change the digits of
+  the values, so the plot does not jump up and down; the legend takes the lines it needs again when the crosshair ends and when
+  the indicators, the chart style, the width, the legend font, the price formatter or whether the legend and the style picker are
+  shown change (a price formatter built anew counts as a changed one, so build it once rather than on every pass of your view).
+  The style picker is centred in the first line, and a title with its value that does not fit beside it moves to the second line
+  whole.
+
 ## [0.1.4] - 2026-11-27
 
 ### Fixed

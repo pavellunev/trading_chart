@@ -59,10 +59,11 @@ BUNDLE_ID = "io.github.pavellunev.TradingChartDemo"
 DEFAULT_UDID = "booted"
 
 # Where the panes are in a screenshot of the demo on an iPhone 16 (1179 x 2556 px) with SMA, Bollinger Bands, Volume, RSI and MACD
-# on: x0, y0, x1, y1 of the plot, without the legend row above it and the column of price labels to the right of it. Measured
-# from the accessibility frames of the demo's compact layout (points x 3): the main plot is 8, 113 pt, 317 x 368 pt, the
-# Volume plot 8, 499.3 pt, 317 x 72.7 pt. Another layout needs `--main` and `--volume`.
-MAIN_PLOT = (24, 339, 975, 1443)
+# on: x0, y0, x1, y1 of the plot, without the legend above it and the column of price labels to the right of it. Measured
+# from the accessibility frames of the demo's compact layout (points x 3): the main plot is 8, 130.3 pt, 317 x 350.7 pt (the
+# legend of SMA and Bollinger Bands takes two lines at this width, and the plot starts below them), the Volume plot
+# 8, 499.3 pt, 317 x 72.7 pt. Another layout needs `--main` and `--volume`.
+MAIN_PLOT = (24, 391, 975, 1443)
 VOLUME_PLOT = (24, 1498, 975, 1716)
 
 DISPLAY_HZ = 60

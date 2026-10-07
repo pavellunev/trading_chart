@@ -360,8 +360,8 @@ struct CrosshairOverlay: View {
 // Things on a pane that follow the newest bar, the price or the crosshair: small views of their own, so that a live tick
 // re-evaluates them and not the pane (whose body builds all the marks).
 
-/// The legend row above the main pane: the overlay indicators with their values at the crosshair bar (or the newest bar).
-/// Empty when the legend is off or there is no overlay indicator.
+/// The legend items of the main pane: the overlay indicators with their values at the crosshair bar (or the newest bar), as the
+/// subviews of a ``LegendFlowLayout``. Empty when the legend is off or there is no overlay indicator.
 @available(iOS 17.0, *)
 struct MainLegend: View {
     let model: TradingChartModel
@@ -375,38 +375,40 @@ struct MainLegend: View {
             if !overlays.isEmpty {
                 let formatter = LegendFormatter(theme: theme, priceFormatter: priceFormatter)
                 let state = model.crosshair ?? model.latestBarState
-                let rows = overlays.map { indicator in
-                    formatter.indicatorRow(
+                let items = overlays.map { indicator in
+                    formatter.indicatorItems(
                         name: indicator.displayName,
                         values: state?.indicatorValues.filter { $0.indicatorID == indicator.id } ?? [],
                         context: .legend
                     )
                 }
-                LegendHeader(text: formatter.header(rows))
+                LegendItems(items: items.flatMap { $0 })
             }
         }
     }
 }
 
-/// The row above the main pane: the legend of the overlay indicators, and at the right (over the price column) the style
-/// picker when ``TradingChartConfiguration/stylePicker`` is set. The picker is outside the plot, so it covers no data. A view
-/// of its own: it reads the configuration and the style (``SeriesStylePicker``), and nothing that changes while scrolling.
+/// The row above the main pane: the legend of the overlay indicators, wrapping onto further lines when it does not fit, and at
+/// the right of its first line (over the price column) the style picker when ``TradingChartConfiguration/stylePicker`` is set.
+/// The picker is outside the plot, so it covers no data. A view of its own: it reads the configuration and the style
+/// (``SeriesStylePicker``), and nothing that changes while scrolling.
 @available(iOS 17.0, *)
 struct MainLegendRow: View {
     let model: TradingChartModel
 
     var body: some View {
-        HStack(spacing: 0) {
+        StableLegend(model: model, indicatorIDs: model.indicators.filter { $0.placement == .overlay }.map(\.id)) {
             MainLegend(model: model)
             if let options = model.configuration.stylePicker {
                 SeriesStylePicker(model: model, options: options)
+                    .legendAccessory()
             }
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 
-/// The legend row above an indicator pane: the indicator with its values at the crosshair bar (or the newest bar).
+/// The legend above an indicator pane: the indicator with its values at the crosshair bar (or the newest bar), wrapping onto
+/// further lines when it does not fit.
 @available(iOS 17.0, *)
 struct PaneLegend: View {
     let model: TradingChartModel
@@ -419,13 +421,13 @@ struct PaneLegend: View {
         if model.configuration.showsLegend {
             let formatter = LegendFormatter(theme: theme, priceFormatter: priceFormatter)
             let state = model.crosshair ?? model.latestBarState
-            LegendHeader(text: formatter.header([
-                formatter.indicatorRow(
+            StableLegend(model: model, indicatorIDs: [indicator.id]) {
+                LegendItems(items: formatter.indicatorItems(
                     name: indicator.displayName,
                     values: state?.indicatorValues.filter { $0.indicatorID == indicator.id } ?? [],
                     context: .compact
-                )
-            ]))
+                ))
+            }
         }
     }
 }

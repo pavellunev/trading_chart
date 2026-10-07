@@ -19,6 +19,12 @@ public struct PriceFormatter: Sendable {
 
     private let formatter: @Sendable (Double, Context) -> String
 
+    /// Tells one formatter from another, which closures cannot do: every initializer makes a new one, a copy keeps it. A view
+    /// that has to start over when the host replaces the formatter (the legend measures its height again, since the values may
+    /// take fewer digits) compares it. A formatter built anew counts as replaced even when it formats alike, so a host that
+    /// wants the legend to keep its height builds it once and not on every pass.
+    let identity = UUID()
+
     /// Creates a formatter that depends on the context.
     public init(_ format: @escaping @Sendable (Double, Context) -> String) {
         self.formatter = format
