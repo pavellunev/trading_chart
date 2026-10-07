@@ -28,6 +28,9 @@ struct MainMarksOverlay: View {
             && $0.time <= visible.upperBound.addingTimeInterval(model.visibleDuration * 0.1) }
         let price = model.configuration.showsCurrentPriceLine ? model.currentPrice : nil
         let lastTime = series.lastTime
+        let plot = plot
+        let theme = theme
+        let priceFormatter = priceFormatter
         // Where the price badge is on screen (it sits at the height of the price, over the price column and a little into the
         // plot), so that the labels of the highest and the lowest price keep clear of it.
         let badge: CGRect? = model.configuration.showsPriceBadge && model.badgeSize.width > 0
@@ -40,9 +43,6 @@ struct MainMarksOverlay: View {
                 )
             }
             : nil
-        let plot = plot
-        let theme = theme
-        let priceFormatter = priceFormatter
         Canvas { context, _ in
             guard plot.width > 0, plot.height > 0 else { return }
             let duration = visible.upperBound.timeIntervalSince(visible.lowerBound)
