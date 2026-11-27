@@ -427,6 +427,17 @@ struct LegendFlowLayoutTests {
         }
     }
 
+    /// A hosted view sits on the pixel grid of the screen (a third of a point at 3x), so what the pure placement says in
+    /// fractions of a point is within that of where the view is.
+    private func near(_ a: CGFloat, _ b: CGFloat) -> Bool {
+        abs(a - b) < 0.25
+    }
+
+    private func near(_ a: CGRect?, _ b: CGRect) -> Bool {
+        guard let a else { return false }
+        return near(a.minX, b.minX) && near(a.minY, b.minY) && near(a.width, b.width) && near(a.height, b.height)
+    }
+
     private func spin(_ seconds: TimeInterval = 0.2) {
         RunLoop.current.run(until: Date().addingTimeInterval(seconds))
     }
@@ -475,10 +486,10 @@ struct LegendFlowLayoutTests {
         let window = host(Probe(frames: frames, widths: [60, 60, 60], picker: true), width: 200)
         defer { window.isHidden = true }
 
-        #expect(frames.byName["item0"] == CGRect(x: 4, y: 5.5, width: 60, height: 13))
-        #expect(frames.byName["item1"] == CGRect(x: 68, y: 5.5, width: 60, height: 13))
-        #expect(frames.byName["item2"] == CGRect(x: 4, y: 26, width: 60, height: 13))
-        #expect(frames.byName["picker"] == CGRect(x: 156, y: 0, width: 44, height: 24))
+        #expect(near(frames.byName["item0"], CGRect(x: 4, y: 5.5, width: 60, height: 13)), "\(String(describing: frames.byName["item0"]))")
+        #expect(near(frames.byName["item1"], CGRect(x: 68, y: 5.5, width: 60, height: 13)), "\(String(describing: frames.byName["item1"]))")
+        #expect(near(frames.byName["item2"], CGRect(x: 4, y: 26, width: 60, height: 13)), "\(String(describing: frames.byName["item2"]))")
+        #expect(near(frames.byName["picker"], CGRect(x: 156, y: 0, width: 44, height: 24)), "\(String(describing: frames.byName["picker"]))")
     }
 
     @Test("the legend of the main pane wraps: an overlay legend that does not fit takes more lines, the picker stays on the first")
@@ -641,7 +652,8 @@ struct LegendFlowLayoutTests {
         // Nothing but the picker is left of the legend: its row, with no band of the lines that were.
         model.configuration.showsLegend = false
         spin()
-        #expect(try height() == SeriesStylePicker.size.height)
+        let picker = try height()
+        #expect(near(picker, SeriesStylePicker.size.height), "\(picker)")
 
         // The legend is another one when it comes back: as tall as its text now, not as tall as it was held before.
         model.update(price: 95, at: last)
@@ -654,7 +666,8 @@ struct LegendFlowLayoutTests {
         model.configuration.showsLegend = false
         model.configuration.stylePicker = nil
         spin()
-        #expect(try height() == 0)
+        let none = try height()
+        #expect(near(none, 0), "\(none)")
     }
 
     @Test("a formatter that shows fewer digits shrinks the legend without a crosshair; so does a smaller font")
@@ -728,7 +741,7 @@ struct LegendFlowLayoutTests {
         let height = try #require(frames.byName["below"]).minY
         #expect(height > 40, "height \(height)")
         #expect(picker.minY > 0)
-        #expect(picker.midY == height / 2, "picker \(picker), height \(height)")
+        #expect(near(picker.midY, height / 2), "picker \(picker), height \(height)")
     }
 
     @Test("the legend of an indicator pane wraps as well")
