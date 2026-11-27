@@ -704,7 +704,15 @@ public final class TradingChartModel {
         guard plotChanged || badgeChanged || columnChanged else { return }
         let wasAtLiveEdge = liveEdgeNow
         batch {
-            if plotChanged, let newPlotWidth { plotWidth = newPlotWidth }
+            if plotChanged, let newPlotWidth {
+                // Swift Charts keeps its scroll offset in points: at another plot width (a rotation, a resized window) the same
+                // offset is another time, and the window drifts to other times or to times without marks. The nudge makes it
+                // re-apply the position (see ``scrollNudge``). The first measurement has no offset to keep.
+                if plotWidth > 0, !series.isEmpty {
+                    scrollNudge = scrollNudge == 0 ? series.interval.seconds * Self.scrollNudgeBars : 0
+                }
+                plotWidth = newPlotWidth
+            }
             if badgeChanged, let newBadgeWidth { badgeWidth = newBadgeWidth }
             if columnChanged, let newColumnWidth { yAxisColumnWidth = newColumnWidth }
             if refreshViewport(), wasAtLiveEdge { moveToLiveEdge() }

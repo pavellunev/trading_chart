@@ -75,6 +75,29 @@ struct ChartDomainTests {
         #expect(model.touchScrollRange.lowerBound == natural(model).lowerBound)
     }
 
+    @Test("a new plot width flips the nudge: Swift Charts keeps its offset in points, at another width it is another time")
+    func plotWidthFlipsTheNudge() {
+        let model = makeModel()
+        model.updateLayoutMetrics(plotWidth: 800, yAxisColumnWidth: 60)
+        let nudge = model.scrollNudge
+
+        model.updateLayoutMetrics(plotWidth: 380)
+        #expect(model.scrollNudge != nudge)
+
+        // Layout noise below a point is not a new width.
+        let flipped = model.scrollNudge
+        model.updateLayoutMetrics(plotWidth: 380.4)
+        #expect(model.scrollNudge == flipped)
+    }
+
+    @Test("the first measured plot width does not flip the nudge")
+    func firstPlotWidthKeepsTheNudge() {
+        let model = makeModel()
+        let nudge = model.scrollNudge
+        model.updateLayoutMetrics(plotWidth: 800, yAxisColumnWidth: 60)
+        #expect(model.scrollNudge == nudge)
+    }
+
     @Test("history prepended beyond the reserve extends the domain by another reserve, once, and flips the nudge")
     func prependBeyondTheReserve() {
         let model = makeModel(reserve: 100)

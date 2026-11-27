@@ -88,7 +88,7 @@ Choose **File > Add Package Dependencies...**, enter the URL of this repository,
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.3")),
+    .package(url: "https://github.com/pavellunev/trading_chart", .upToNextMinor(from: "0.1.4")),
 ],
 targets: [
     .target(

@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-27
+
+### Fixed
+
+- The chart keeps its window when the width of the plot changes (a rotation, a resized window, Split View, a folding
+  phone). Swift Charts keeps its scroll offset in points, so at another plot width the same offset meant other times: the
+  window drifted to other times or to times without marks and the chart looked empty or squeezed. The model now makes the
+  chart re-apply its position when the plot width changes.
+
 ## [0.1.3] - 2026-10-07
 
 ### Added
@@ -103,7 +112,8 @@ The first version.
 - Monthly bars are not supported: a month is not a fixed number of seconds, and a `ChartInterval` is.
 - `onEvent` holds one handler; the model does not have several subscribers.
 
-[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.3...HEAD
+[Unreleased]: https://github.com/pavellunev/trading_chart/compare/0.1.4...HEAD
+[0.1.4]: https://github.com/pavellunev/trading_chart/compare/0.1.3...0.1.4
 [0.1.3]: https://github.com/pavellunev/trading_chart/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/pavellunev/trading_chart/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/pavellunev/trading_chart/compare/0.1.0...0.1.1
